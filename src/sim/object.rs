@@ -5,7 +5,8 @@ use super::vec2::Vec2;
 use crate::vec2;
 
 const GRAVITY: Vec2 = vec2!(0, 250);
-const BOUNCE_CONSTANT: f64 = 0.75;
+const BOUNCE_CONSTANT: f64 = 0.25;
+const FRICTION: f64 = 0.40; // smaller value = more friction
 
 #[derive(Derivative)]
 #[derivative(Default)]
@@ -47,7 +48,9 @@ impl Object {
         if self.position.y > self.floor_y {
 
             self.velocity.y = -(self.velocity.y.abs() * BOUNCE_CONSTANT);
-            self.position.y = self.floor_y - 0.05
+            self.position.y = self.floor_y - 0.05;
+
+            self.velocity.x = self.velocity.x * FRICTION
         }
     }
 }

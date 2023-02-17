@@ -5,6 +5,7 @@ mod sim;
 
 extern crate piston_window;
 extern crate lazy_static;
+extern crate find_folder;
 
 use crate::window::create_window;
 //use crate::events::handle_events;
@@ -19,19 +20,23 @@ use std::time::Instant;
 
 const BALL_RADIUS: f64 = 10.0;
 
-const WIDTH: u32 = 1200;
-const HEIGHT: u32 = 500;
+const WIDTH: u32 = 1600;
+const HEIGHT: u32 = 800;
 
-const FLOOR_Y: f64 = 490.0;
+const FLOOR_Y: f64 = HEIGHT as f64 - 10.0;
 
 fn main() {
+
     let mut last_tick: Instant = Instant::now();
 
     let mut window: PistonWindow = create_window(WIDTH, HEIGHT);
 
+    let assets = find_folder::Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
+    let mut glyphs = window.load_font(assets.join("Roboto-Medium.ttf")).unwrap();
+
     let mut gravity_object = Object {
-        position: vec2!(0.0, HEIGHT/2),
-        velocity: vec2!(500.0, -400),
+        position: vec2!(0.0, 0),
+        velocity: vec2!(1000.0, 0),
         floor_y: FLOOR_Y,
         r: BALL_RADIUS,
         ..Object::default()
@@ -39,7 +44,7 @@ fn main() {
 
     let ellipse_drawer = Ellipse::new([1.0; 4]);
     let line_drawer = Line::new([1.0; 4], 1.0);
-    //let text_drawer = Text::new_color([1.0; 4], 15);
+    let text_drawer = Text::new_color([1.0; 4], 15);
 
     while let Some(event) = window.next() {
         let dt: f64 = last_tick.elapsed().as_secs_f64();
@@ -48,11 +53,14 @@ fn main() {
         gravity_object.update_position(dt);
         //println!("{}", gravity_object);
 
+        let visible_x = gravity_object.position.x % WIDTH as f64;
+        let visible_y = (gravity_object.position.y % HEIGHT as f64) - BALL_RADIUS;
+
         window.draw_2d(&event, |context, graphics, _device| {
             clear([0.0; 4], graphics);
 
             ellipse_drawer.draw(
-                circle(gravity_object.position.x, gravity_object.position.y - BALL_RADIUS, BALL_RADIUS),
+                circle(visible_x, visible_y, BALL_RADIUS),
                 &DrawState {scissor: None, stencil: None, blend: None},
                 context.transform,
                 graphics
@@ -60,12 +68,12 @@ fn main() {
 
             line_drawer.draw_arrow(
                 [
-                    gravity_object.position.x,
-                    gravity_object.position.y,
-                    gravity_object.position.x + gravity_object.velocity.x/3.0,
-                    gravity_object.position.y + gravity_object.velocity.y/3.0 + gravity_object.velocity.y.signum()*10.0,
+                    visible_x,
+                    visible_y,
+                    visible_x + gravity_object.velocity.x/3.0,
+                    visible_y + gravity_object.velocity.y/3.0 + gravity_object.velocity.y.signum()*10.0,
                 ],
-                10.0,
+                6.0,
                 &DrawState {scissor: None, stencil: None, blend: None},
                 context.transform,
                 graphics
@@ -82,6 +90,17 @@ fn main() {
                 context.transform,
                 graphics
             );
+
+            for i in 0..=HEIGHT/100 {
+                text_drawer.draw_pos(
+                i.to_string().as_str(),
+                    [10.0, i as f64 * 100.0],
+                    &mut glyphs,
+                    &context.draw_state,
+                    context.transform,
+                    graphics
+                ).unwrap();
+            }
         });
     }
 }
