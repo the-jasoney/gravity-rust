@@ -6,7 +6,7 @@ use crate::vec2;
 
 const GRAVITY: Vec2 = vec2!(0, 500); // in pixels per second squared
 const BOUNCE_CONSTANT: f64 = 0.60;
-const FRICTION: f64 = 0.20;
+const FRICTION: f64 = 0.1;
 
 #[derive(Derivative)]
 #[derivative(Default)]
