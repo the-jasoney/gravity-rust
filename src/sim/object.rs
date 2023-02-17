@@ -5,7 +5,7 @@ use super::vec2::Vec2;
 use crate::vec2;
 
 const GRAVITY: Vec2 = vec2!(0, 250);
-const BOUNCE_CONSTANT: f64 = 0.25;
+const BOUNCE_CONSTANT: f64 = 0.75;
 const FRICTION: f64 = 0.40; // smaller value = more friction
 
 #[derive(Derivative)]

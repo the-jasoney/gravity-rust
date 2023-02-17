@@ -24,6 +24,13 @@ impl Vec2 {
             y: self.y.abs()
         }
     }
+
+    pub fn from_arr(v: [f64; 2]) -> Vec2 {
+        Vec2 {
+            x: v[0],
+            y: v[1]
+        }
+    }
 }
 
 impl ops::Add<Vec2> for Vec2 {
@@ -68,6 +75,23 @@ impl ops::Mul<Vec2> for f64 {
 impl ops::MulAssign<f64> for Vec2 {
     fn mul_assign(&mut self, rhs: f64) {
         *self = *self * rhs
+    }
+}
+
+impl ops::Sub<Vec2> for Vec2 {
+    type Output = Vec2;
+
+    fn sub(self, rhs: Vec2) -> Self::Output {
+        Vec2 {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y
+        }
+    }
+}
+
+impl ops::SubAssign<Vec2> for Vec2 {
+    fn sub_assign(&mut self, rhs: Vec2) {
+        *self = *self - rhs
     }
 }
 

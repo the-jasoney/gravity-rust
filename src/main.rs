@@ -15,6 +15,9 @@ use sim::vec2;
 
 use piston_window::ellipse::circle;
 use piston_window::*;
+use piston_window::Input::{Move, Button};
+use piston_window::Motion::MouseCursor;
+use piston_window::Button as ButtonType;
 
 use std::time::Instant;
 
@@ -26,58 +29,110 @@ const HEIGHT: u32 = 800;
 const FLOOR_Y: f64 = HEIGHT as f64 - 10.0;
 
 fn main() {
+    let mut mouse_x: f64 = 0.0;
+    let mut mouse_y: f64 = 0.0;
+
+    let mut mouse_down_position: Option<Vec2> = None;
+    let mut mouse_up_position: Option<Vec2> = None;
 
     let mut last_tick: Instant = Instant::now();
 
     let mut window: PistonWindow = create_window(WIDTH, HEIGHT);
 
-    let assets = find_folder::Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
-    let mut glyphs = window.load_font(assets.join("Roboto-Medium.ttf")).unwrap();
+    //let assets = find_folder::Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
+    //let mut glyphs = window.load_font(assets.join("Roboto-Medium.ttf")).unwrap();
 
-    let mut gravity_object = Object {
-        position: vec2!(0.0, 0),
-        velocity: vec2!(1000.0, 0),
+    /*let mut gravity_object = Object {
+        position: vec2!(WIDTH/2, 0),
+        velocity: vec2!(0.0, 0),
         floor_y: FLOOR_Y,
         r: BALL_RADIUS,
         ..Object::default()
-    };
+    };*/
+
+    let mut objects: Vec<Object> = vec![];
 
     let ellipse_drawer = Ellipse::new([1.0; 4]);
     let line_drawer = Line::new([1.0; 4], 1.0);
-    let text_drawer = Text::new_color([1.0; 4], 15);
+    //let text_drawer = Text::new_color([1.0; 4], 15);
 
     while let Some(event) = window.next() {
+        if let Event::Input(input, _) = &event {
+            [mouse_x, mouse_y] = match *input {
+                Move(
+                    MouseCursor(
+                        pos
+                    )
+                ) => pos,
+                _ => [mouse_x, mouse_y]
+            };
+
+            match *input {
+                Button(x) => {
+                    if x.button == ButtonType::Mouse(MouseButton::Left) {
+                        if x.state == ButtonState::Press {
+                            mouse_down_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
+                        }
+
+                        if x.state == ButtonState::Release {
+                            mouse_up_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
+                        }
+                    }
+                },
+                _ => {}
+            };
+
+            //println!("{:#?}", *input);
+        }
+
         let dt: f64 = last_tick.elapsed().as_secs_f64();
         last_tick = Instant::now();
 
-        gravity_object.update_position(dt);
-        //println!("{}", gravity_object);
+        for i in &mut objects {
+            i.update_position(dt)
+        }
 
-        let visible_x = gravity_object.position.x % WIDTH as f64;
-        let visible_y = (gravity_object.position.y % HEIGHT as f64) - BALL_RADIUS;
+        //let visible_x = gravity_object.position.x % WIDTH as f64;
+        //let visible_y = (gravity_object.position.y % HEIGHT as f64) - BALL_RADIUS;
+
+        if let [Some(d), Some(u)] = [mouse_down_position, mouse_up_position] {
+            objects.push(Object {
+                position: d,
+                velocity: u - d,
+                floor_y: FLOOR_Y,
+                r: 10.0
+            });
+
+            println!("start: {}, end: {}", d, u);
+
+            mouse_down_position = None;
+            mouse_up_position = None;
+        }
 
         window.draw_2d(&event, |context, graphics, _device| {
             clear([0.0; 4], graphics);
 
-            ellipse_drawer.draw(
-                circle(visible_x, visible_y, BALL_RADIUS),
-                &DrawState {scissor: None, stencil: None, blend: None},
-                context.transform,
-                graphics
-            );
+            for i in &objects {
+                ellipse_drawer.draw(
+                    circle(i.position.x, i.position.y - 10.0, BALL_RADIUS),
+                    &context.draw_state,
+                    context.transform,
+                    graphics
+                );
 
-            line_drawer.draw_arrow(
-                [
-                    visible_x,
-                    visible_y,
-                    visible_x + gravity_object.velocity.x/3.0,
-                    visible_y + gravity_object.velocity.y/3.0 + gravity_object.velocity.y.signum()*10.0,
-                ],
-                6.0,
-                &DrawState {scissor: None, stencil: None, blend: None},
-                context.transform,
-                graphics
-            );
+                line_drawer.draw_arrow(
+                    [
+                        i.position.x,
+                        i.position.y - 10.0,
+                        i.position.x + i.velocity.x/3.0,
+                        i.position.y - 10.0 + i.velocity.y/3.0 + i.velocity.y.signum()*10.0,
+                    ],
+                    6.0,
+                    &context.draw_state,
+                    context.transform,
+                    graphics
+                );
+            }
 
             line_drawer.draw(
                 [
@@ -90,17 +145,6 @@ fn main() {
                 context.transform,
                 graphics
             );
-
-            for i in 0..=HEIGHT/100 {
-                text_drawer.draw_pos(
-                i.to_string().as_str(),
-                    [10.0, i as f64 * 100.0],
-                    &mut glyphs,
-                    &context.draw_state,
-                    context.transform,
-                    graphics
-                ).unwrap();
-            }
         });
     }
 }
