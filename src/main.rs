@@ -2,10 +2,12 @@ mod window;
 mod events;
 mod draw;
 mod sim;
+mod util;
 
 extern crate piston_window;
 extern crate lazy_static;
 extern crate find_folder;
+extern crate fps_counter;
 
 use crate::window::create_window;
 //use crate::events::handle_events;
@@ -29,6 +31,10 @@ const HEIGHT: u32 = 800;
 const FLOOR_Y: f64 = HEIGHT as f64 - 10.0;
 
 fn main() {
+    let mut counter = fps_counter::FPSCounter::new();
+
+    let mut show_vectors: bool = false;
+
     let mut mouse_x: f64 = 0.0;
     let mut mouse_y: f64 = 0.0;
 
@@ -39,8 +45,8 @@ fn main() {
 
     let mut window: PistonWindow = create_window(WIDTH, HEIGHT);
 
-    //let assets = find_folder::Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
-    //let mut glyphs = window.load_font(assets.join("Roboto-Medium.ttf")).unwrap();
+    let assets = find_folder::Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
+    let mut glyphs = window.load_font(assets.join("Roboto-Medium.ttf")).unwrap();
 
     /*let mut gravity_object = Object {
         position: vec2!(WIDTH/2, 0),
@@ -53,10 +59,14 @@ fn main() {
     let mut objects: Vec<Object> = vec![];
 
     let ellipse_drawer = Ellipse::new([1.0; 4]);
-    let line_drawer = Line::new([1.0; 4], 1.0);
-    //let text_drawer = Text::new_color([1.0; 4], 15);
+    let line_drawer = Line::new([1.0, 1.0, 1.0, 0.5], 1.0);
+    let floor_drawer = Line::new([1.0; 4], 1.0);
+    let text_drawer = Text::new_color([1.0; 4], 15);
 
     while let Some(event) = window.next() {
+        let fps = counter.tick();
+        //println!("{}", fps);
+
         if let Event::Input(input, _) = &event {
             [mouse_x, mouse_y] = match *input {
                 Move(
@@ -76,6 +86,12 @@ fn main() {
 
                         if x.state == ButtonState::Release {
                             mouse_up_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
+                        }
+                    } else if x.button == ButtonType::Keyboard(Key::Backspace) {
+                        objects = vec![];
+                    } else if x.button == ButtonType::Keyboard(Key::Space) {
+                        if x.state == ButtonState::Press {
+                            show_vectors = !show_vectors
                         }
                     }
                 },
@@ -120,21 +136,32 @@ fn main() {
                     graphics
                 );
 
-                line_drawer.draw_arrow(
-                    [
-                        i.position.x,
-                        i.position.y - 10.0,
-                        i.position.x + i.velocity.x/3.0,
-                        i.position.y - 10.0 + i.velocity.y/3.0 + i.velocity.y.signum()*10.0,
-                    ],
-                    6.0,
-                    &context.draw_state,
-                    context.transform,
-                    graphics
-                );
+                if show_vectors {
+                    line_drawer.draw_arrow(
+                        [
+                            i.position.x,
+                            i.position.y - 10.0,
+                            i.position.x + i.velocity.x/3.0,
+                            i.position.y - 10.0 + i.velocity.y/3.0 + i.velocity.y.signum()*10.0
+                        ],
+                        6.0,
+                        &context.draw_state,
+                        context.transform,
+                        graphics
+                    );
+                }
             }
 
-            line_drawer.draw(
+            text_drawer.draw_pos(
+                ("fps: ".to_owned() + fps.to_string().as_str()).as_str(),
+                [(WIDTH/2) as f64, 10.0],
+                &mut glyphs,
+                &context.draw_state,
+                context.transform,
+                graphics
+            ).unwrap();
+
+            floor_drawer.draw(
                 [
                     0.0,
                     FLOOR_Y,

@@ -4,9 +4,9 @@ use derivative::Derivative;
 use super::vec2::Vec2;
 use crate::vec2;
 
-const GRAVITY: Vec2 = vec2!(0, 250);
-const BOUNCE_CONSTANT: f64 = 0.75;
-const FRICTION: f64 = 0.40; // smaller value = more friction
+const GRAVITY: Vec2 = vec2!(0, 500); // in pixels per second squared
+const BOUNCE_CONSTANT: f64 = 0.60;
+const FRICTION: f64 = 0.20;
 
 #[derive(Derivative)]
 #[derivative(Default)]
@@ -50,7 +50,7 @@ impl Object {
             self.velocity.y = -(self.velocity.y.abs() * BOUNCE_CONSTANT);
             self.position.y = self.floor_y - 0.05;
 
-            self.velocity.x = self.velocity.x * FRICTION
+            self.velocity.x = self.velocity.x * (1.0 - FRICTION)
         }
     }
 }
