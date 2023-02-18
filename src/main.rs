@@ -11,17 +11,16 @@ use sim::vec2;
 
 use piston_window::ellipse::circle;
 use piston_window::*;
-use piston_window::Input::{Move, Button};
-use piston_window::Motion::MouseCursor;
+use piston_window::Motion::{MouseCursor, MouseScroll};
 use piston_window::Button as ButtonType;
 
 use std::time::Instant;
 
 const BALL_RADIUS: f64 = 10.0;
 
-const TIME_SCALING_FACTOR: f64 = 1_f64;
-
 fn main() {
+    let mut time_scaling_factor: f64 = 1.0;
+
     // whether or not to show the arrow vectors
     let mut show_vectors: bool = false;
 
@@ -48,30 +47,39 @@ fn main() {
         let mut object_locations: Vec<Vec2> = vec![];
 
         // calculate dt
-        let dt: f64 = last_tick.elapsed().as_secs_f64() * TIME_SCALING_FACTOR;
+        let dt: f64 = last_tick.elapsed().as_secs_f64() * time_scaling_factor;
         last_tick = Instant::now();
 
         if let Event::Input(input, _) = &event { // handle events
-            match *input {
-                Move(MouseCursor(pos)) => [mouse_x, mouse_y] = pos, // get mouse x and mouse y
-                Button(x) =>
-                    if x.button == ButtonType::Mouse(MouseButton::Left) { // mouse left click
-                        if x.state == ButtonState::Press {
-                            mouse_down_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
-                        }
-
-                        if x.state == ButtonState::Release {
-                            mouse_up_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
-                        }
-                    } else if x.button == ButtonType::Keyboard(Key::Backspace) || x.button == ButtonType::Keyboard(Key::Delete) { // clear objects with backspace/delete
-                        objects = vec![];
-                    } else if x.button == ButtonType::Keyboard(Key::Space) { // space toggle vectors
-                        if x.state == ButtonState::Press {
-                            show_vectors = !show_vectors
-                        }
+            if let Input::Move(x) = *input {
+                if let MouseCursor(pos) = x {
+                    [mouse_x, mouse_y] = pos;
+                } else if let MouseScroll([_, y]) = x {
+                    if time_scaling_factor > 0.0 {
+                        time_scaling_factor += y/100.0;
                     }
-                ,
-                _ => {} // we ignore all other inputs
+                }
+            }
+            if let Input::Button(x) = *input {
+                if x.button == ButtonType::Mouse(MouseButton::Left) { // mouse left click
+                    if x.state == ButtonState::Press {
+                        mouse_down_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
+                    }
+
+                    if x.state == ButtonState::Release {
+                        mouse_up_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
+                    }
+                } else if
+                    x.button == ButtonType::Keyboard(Key::Backspace) ||
+                    x.button == ButtonType::Keyboard(Key::Delete)
+                { // clear objects with backspace/delete and reset time scaling factor
+                    objects = vec![];
+                    time_scaling_factor = 1.0;
+                } else if x.button == ButtonType::Keyboard(Key::Space) { // space toggle vectors
+                    if x.state == ButtonState::Press {
+                        show_vectors = !show_vectors
+                    }
+                }
             }
         }
 
@@ -102,7 +110,8 @@ fn main() {
 
         // drawers for different types of things
         let ellipse_drawer = Ellipse::new([1.0; 4]);
-        let line_drawer = Line::new([1.0, 1.0, 1.0, 0.5], 1.0);
+        let ellipse2_drawer = Ellipse::new([0.5; 4]);
+        let line_drawer = Line::new([1.0, 1.0, 1.0, 0.25], 1.0);
         window.draw_2d(&event, |context, graphics, _device| {
             // background
             clear([0.0; 4], graphics);
@@ -134,6 +143,13 @@ fn main() {
                 }
             };
             if let [Some(x), None] = [mouse_down_position, mouse_up_position] {
+                ellipse2_drawer.draw(
+                    circle(x.x, x.y, 10.0),
+                    &context.draw_state,
+                    context.transform,
+                    graphics
+                );
+
                 line_drawer.draw_arrow(
                     [
                         x.x,
