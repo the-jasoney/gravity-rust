@@ -1,6 +1,11 @@
 use std::ops;
 use std::fmt;
 
+///A 2D Vector that can be
+///  - added by another Vec2
+///  - subtracted by another Vec2
+///  - multiplied by a scalar value (`f64`)
+///  - normalized
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vec2 {
     pub x: f64,
@@ -8,11 +13,11 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
-    pub fn normalize(&mut self) {
+    pub fn normalize(&self) -> Vec2 {
         let len_squared = self.x * self.x + self.y * self.y;
         let inv_sqrt = len_squared.sqrt();
 
-        *self = Vec2 {
+        Vec2 {
             x: self.x * inv_sqrt,
             y: self.y * inv_sqrt
         }
@@ -30,6 +35,11 @@ impl Vec2 {
             x: v[0],
             y: v[1]
         }
+    }
+
+    pub fn dist_scalar(a: Vec2, b: Vec2) -> f64 {
+        let absq = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+        absq.sqrt()
     }
 }
 

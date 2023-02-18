@@ -1,16 +1,10 @@
 mod window;
-mod events;
-mod draw;
 mod sim;
-mod util;
 
 extern crate piston_window;
 extern crate lazy_static;
-extern crate find_folder;
-extern crate fps_counter;
 
 use crate::window::create_window;
-//use crate::events::handle_events;
 use crate::sim::object::Object;
 use sim::vec2::Vec2;
 use sim::vec2;
@@ -25,61 +19,47 @@ use std::time::Instant;
 
 const BALL_RADIUS: f64 = 10.0;
 
-const WIDTH: u32 = 1600;
-const HEIGHT: u32 = 800;
-
-const FLOOR_Y: f64 = HEIGHT as f64 - 10.0;
+const TIME_SCALING_FACTOR: f64 = 1_f64;
 
 fn main() {
-    let mut counter = fps_counter::FPSCounter::new();
-
+    // whether or not to show the arrow vectors
     let mut show_vectors: bool = false;
 
+    // mouse position
     let mut mouse_x: f64 = 0.0;
     let mut mouse_y: f64 = 0.0;
 
+    // where the mouse was pressed and depressed
     let mut mouse_down_position: Option<Vec2> = None;
     let mut mouse_up_position: Option<Vec2> = None;
 
+    // the last tick; used for calculating dt
     let mut last_tick: Instant = Instant::now();
 
-    let mut window: PistonWindow = create_window(WIDTH, HEIGHT);
+    // window
+    let mut window: PistonWindow = create_window(1600, 800);
+    let w = window.size().width;
+    let h = window.size().height;
 
-    let assets = find_folder::Search::ParentsThenKids(3, 3).for_folder("assets").unwrap();
-    let mut glyphs = window.load_font(assets.join("Roboto-Medium.ttf")).unwrap();
-
-    /*let mut gravity_object = Object {
-        position: vec2!(WIDTH/2, 0),
-        velocity: vec2!(0.0, 0),
-        floor_y: FLOOR_Y,
-        r: BALL_RADIUS,
-        ..Object::default()
-    };*/
-
+    // balls with gravity
     let mut objects: Vec<Object> = vec![];
 
+    // drawers for different types of things
     let ellipse_drawer = Ellipse::new([1.0; 4]);
     let line_drawer = Line::new([1.0, 1.0, 1.0, 0.5], 1.0);
-    let floor_drawer = Line::new([1.0; 4], 1.0);
-    let text_drawer = Text::new_color([1.0; 4], 15);
 
-    while let Some(event) = window.next() {
-        let fps = counter.tick();
-        //println!("{}", fps);
+    while let Some(event) = window.next() { // program loop
+        let mut object_locations: Vec<Vec2> = vec![];
 
-        if let Event::Input(input, _) = &event {
-            [mouse_x, mouse_y] = match *input {
-                Move(
-                    MouseCursor(
-                        pos
-                    )
-                ) => pos,
-                _ => [mouse_x, mouse_y]
-            };
+        // calculate dt
+        let dt: f64 = last_tick.elapsed().as_secs_f64() * TIME_SCALING_FACTOR;
+        last_tick = Instant::now();
 
+        if let Event::Input(input, _) = &event { // handle events
             match *input {
-                Button(x) => {
-                    if x.button == ButtonType::Mouse(MouseButton::Left) {
+                Move(MouseCursor(pos)) => [mouse_x, mouse_y] = pos, // get mouse x and mouse y
+                Button(x) =>
+                    if x.button == ButtonType::Mouse(MouseButton::Left) { // mouse left click
                         if x.state == ButtonState::Press {
                             mouse_down_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
                         }
@@ -87,48 +67,50 @@ fn main() {
                         if x.state == ButtonState::Release {
                             mouse_up_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
                         }
-                    } else if x.button == ButtonType::Keyboard(Key::Backspace) {
+                    } else if x.button == ButtonType::Keyboard(Key::Backspace) { // clear objects with backspace
                         objects = vec![];
-                    } else if x.button == ButtonType::Keyboard(Key::Space) {
+                    } else if x.button == ButtonType::Keyboard(Key::Space) { // space toggle vectors
                         if x.state == ButtonState::Press {
                             show_vectors = !show_vectors
                         }
                     }
-                },
-                _ => {}
-            };
-
-            //println!("{:#?}", *input);
+                ,
+                _ => {} // we ignore all other inputs
+            }
         }
 
-        let dt: f64 = last_tick.elapsed().as_secs_f64();
-        last_tick = Instant::now();
+        for i in &objects {
+            object_locations.push(i.position);
+        }
 
+        // loop over all objects and update them
         for i in &mut objects {
-            i.update_position(dt)
+            i.update_position(dt, object_locations.clone());
         }
 
-        //let visible_x = gravity_object.position.x % WIDTH as f64;
-        //let visible_y = (gravity_object.position.y % HEIGHT as f64) - BALL_RADIUS;
-
+        // check if the user created a object and actually create it
         if let [Some(d), Some(u)] = [mouse_down_position, mouse_up_position] {
             objects.push(Object {
                 position: d,
-                velocity: u - d,
-                floor_y: FLOOR_Y,
-                r: 10.0
+                velocity: (u - d) * 2.0,
+                bound_bottom: h,
+                bound_left: 0.0,
+                bound_right: w,
+                bound_top: 10.0
             });
 
-            println!("start: {}, end: {}", d, u);
-
+            // reset
             mouse_down_position = None;
             mouse_up_position = None;
         }
 
         window.draw_2d(&event, |context, graphics, _device| {
+            // background
             clear([0.0; 4], graphics);
 
+            // draw each object
             for i in &objects {
+                // draw ball
                 ellipse_drawer.draw(
                     circle(i.position.x, i.position.y - 10.0, BALL_RADIUS),
                     &context.draw_state,
@@ -137,6 +119,7 @@ fn main() {
                 );
 
                 if show_vectors {
+                    // draw the vector arrow if show_vectors
                     line_drawer.draw_arrow(
                         [
                             i.position.x,
@@ -151,27 +134,6 @@ fn main() {
                     );
                 }
             }
-
-            text_drawer.draw_pos(
-                ("fps: ".to_owned() + fps.to_string().as_str()).as_str(),
-                [(WIDTH/2) as f64, 10.0],
-                &mut glyphs,
-                &context.draw_state,
-                context.transform,
-                graphics
-            ).unwrap();
-
-            floor_drawer.draw(
-                [
-                    0.0,
-                    FLOOR_Y,
-                    WIDTH as f64,
-                    FLOOR_Y
-                ],
-                &DrawState {scissor: None, stencil: None, blend: None},
-                context.transform,
-                graphics
-            );
-        });
-    }
-}
+        }); // window.draw2d
+    } // while let
+} // fn main
