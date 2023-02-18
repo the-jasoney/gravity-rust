@@ -1,4 +1,5 @@
-#[allow(dead_code)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 
 use super::vec2::Vec2;
 use crate::vec2;
