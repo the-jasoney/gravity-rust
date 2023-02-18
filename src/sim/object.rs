@@ -72,7 +72,7 @@ impl Object {
             self.velocity.y = self.velocity.y.abs() * BOUNCE_CONSTANT;
             self.position.y = self.bound_top + 0.05;
 
-            self.velocity.x = self.velocity.y * (1.0 - FRICTION);
+            self.velocity.x = self.velocity.x * (1.0 - FRICTION);
         }
 
         if self.position.x < self.bound_left {
