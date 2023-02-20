@@ -5,7 +5,7 @@
 - cargo
 
 ### dev
-run 
+run
 ```sh
 cargo run
 ```
@@ -18,3 +18,5 @@ Left-click and Drag: create new ball with velocity towards drag direction
 <kbd>Backspace</kbd> - Delete all objects
 
 <kbd>Space</kbd> - Toggle show vectors
+
+<kbd>P</kbd> - Toggle show projection
