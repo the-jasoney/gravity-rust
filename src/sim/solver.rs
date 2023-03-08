@@ -1,5 +1,8 @@
 use crate::Object;
-use crate::{Vec2, vec2};
+use crate::{vec2, Vec2};
+
+use super::segment::Segment;
+use super::util::reduce2d;
 
 /// Gravity constant.
 /// Measured in pixels per second squared
@@ -25,7 +28,7 @@ pub struct Solver {
     pub bound_left: f64,
     pub bound_right: f64,
     pub bound_top: f64,
-    pub bound_bottom: f64
+    pub bound_bottom: f64,
 }
 
 impl Solver {
@@ -35,7 +38,7 @@ impl Solver {
             bound_left,
             bound_right,
             bound_top,
-            bound_bottom
+            bound_bottom,
         }
     }
 
@@ -43,7 +46,9 @@ impl Solver {
         self.objects.push(Object {
             position,
             velocity,
-            mass
+            next_position: position,
+            next_velocity: velocity,
+            mass,
         });
     }
 
@@ -51,27 +56,27 @@ impl Solver {
         for i in &mut self.objects {
             // check for collision with wall
             if i.position.y > self.bound_bottom {
-                i.velocity.y = -(i.velocity.y.abs() * BOUNCE_CONSTANT);
-                i.position.y = self.bound_bottom - 0.05;
+                i.next_velocity.y = -(i.velocity.y.abs() * BOUNCE_CONSTANT);
+                i.next_position.y = self.bound_bottom - 0.05;
 
-                i.velocity.x = i.velocity.x * (1.0 - FRICTION);
+                i.next_velocity.x = i.velocity.x * (1.0 - FRICTION);
             } else if i.position.y < self.bound_top {
-                i.velocity.y = i.velocity.y.abs() * BOUNCE_CONSTANT;
-                i.position.y = self.bound_top + 0.05;
+                i.next_velocity.y = i.velocity.y.abs() * BOUNCE_CONSTANT;
+                i.next_position.y = self.bound_top + 0.05;
 
-                i.velocity.x = i.velocity.x * (1.0 - FRICTION);
+                i.next_velocity.x = i.velocity.x * (1.0 - FRICTION);
             }
 
             if i.position.x < self.bound_left {
-                i.velocity.x = i.velocity.x.abs() * BOUNCE_CONSTANT;
-                i.position.x = self.bound_left + 0.05;
+                i.next_velocity.x = i.velocity.x.abs() * BOUNCE_CONSTANT;
+                i.next_position.x = self.bound_left + 0.05;
 
-                i.velocity.y = i.velocity.y * (1.0 - FRICTION);
+                i.next_velocity.y = i.velocity.y * (1.0 - FRICTION);
             } else if i.position.x > self.bound_right {
-                i.velocity.x = -(i.velocity.x.abs() * BOUNCE_CONSTANT);
-                i.position.x = self.bound_right - 0.05;
+                i.next_velocity.x = -(i.velocity.x.abs() * BOUNCE_CONSTANT);
+                i.next_position.x = self.bound_right - 0.05;
 
-                i.velocity.y = i.velocity.y * (1.0 - FRICTION);
+                i.next_velocity.y = i.velocity.y * (1.0 - FRICTION);
             }
         }
     }
@@ -80,31 +85,48 @@ impl Solver {
         for i in &mut self.objects {
             // next_velocity = current_velocity + dt*current_acceleration
             // acceleration in this case === GRAVITY
-            i.velocity += GRAVITY * dt;
+            i.next_velocity = i.next_velocity + GRAVITY * dt;
 
             // next_position = current_position + dt*next_velocity
-            i.position += i.velocity * dt;
+            i.next_position = i.next_position + i.next_velocity * dt;
         }
     }
 
-    pub fn solve_collision_objects(&mut self) {
-        let mut collisions: Vec<[usize; 2]> = vec![];
+    pub fn get_collisions(&self) -> Vec<usize> {
+        let mut collisions: Vec<Vec<usize>> = vec![];
+        for (idx, i) in self.objects.iter().enumerate() {
+            let mut collision_vec: Vec<usize> = vec![idx];
+            let i_segment = Segment::from((i.position, i.next_position)).extend(i.mass);
 
-        for (idx, i) in &mut self.objects.iter().enumerate() {
-            for (jdx, j) in &mut self.objects.iter().enumerate() {
-                if idx == jdx {
-                    continue;
-                }
+            for (jdx, j) in self.objects.iter().enumerate() {
+                let j_segment = Segment::from((j.position, j.next_position));
 
-                if Vec2::dist_scalar(i.position, j.position) <= 20.0 {
-                    collisions.push([idx, jdx]);
+                if let Some(_) = Segment::intersection(&i_segment, &j_segment) {
+                    // this function only checks for
+                    // collisions, and we can throw
+                    // away the value
+                    if !collision_vec.contains(&jdx) {
+                        collision_vec.push(jdx);
+                    }
                 }
+            }
+
+            if collision_vec.len() > 1 {
+                collisions.push(collision_vec);
             }
         }
 
-        for i in collisions {
-            self.collide(i[0], i[1]);
-        }
+        reduce2d(collisions)
+    }
+
+    pub fn solve_collision_objects(&mut self) {
+        /*
+            solve collisions by going over each object and checking if any other object will collide with it within the next
+            frame. if it is found to be colliding, then its index will be added to an array. this array, after finishing
+            the loop for each object, will be added to an array
+
+        */
+        let mut collisions: Vec<Vec<usize>> = vec![];
     }
 
     #[allow(non_snake_case)]
@@ -126,21 +148,42 @@ impl Solver {
         println!("collision between {:?} and {:?}", object1, object2);
     }
 
-    pub fn solve_all(&mut self, dt: f64) {
-        self.solve_collision_walls();
-        //self.solve_collision_objects();
-        self.solve_euler(dt);
+    pub fn resolve(&mut self) {
+        for i in &mut self.objects {
+            i.position = i.next_position;
+            i.velocity = i.next_velocity;
+        }
     }
 
-    pub fn solve_for_x_seconds(&self, position: Vec2, velocity: Vec2, mass: f64, t: i64) -> Vec<Vec2> {
-        let tx5 = t*10;
+    pub fn solve_all(&mut self, dt: f64) {
+        //self.solve_collision_objects();
+        self.solve_collision_walls();
+        self.solve_euler(dt);
+        let collisions = self.get_collisions();
+
+        if collisions.len() > 0 {
+            println!("{:?}", self.get_collisions());
+        }
+        self.resolve()
+    }
+
+    pub fn solve_for_x_seconds(
+        &self,
+        position: Vec2,
+        velocity: Vec2,
+        mass: f64,
+        t: i64,
+    ) -> Vec<Vec2> {
+        let tx5 = t * 10;
 
         let mut result: Vec<Vec2> = vec![];
 
         let mut i = Object {
             position,
             velocity,
-            mass
+            next_position: vec2!(),
+            next_velocity: vec2!(),
+            mass,
         };
 
         for _ in 0..tx5 {

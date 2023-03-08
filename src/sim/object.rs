@@ -23,7 +23,6 @@ const BOUNCE_CONSTANT: f64 = 0.60;
 /// Represents how much friction the ball experiences when touching the ground.
 const FRICTION: f64 = 0.01;
 
-
 /// Gravity-affected object
 ///
 /// An object with a position and velocity.
@@ -37,6 +36,9 @@ pub struct Object {
     /// The velocity of the Object.
     pub velocity: Vec2,
 
-    pub mass: f64
-}
+    pub next_velocity: Vec2,
 
+    pub next_position: Vec2,
+
+    pub mass: f64,
+}

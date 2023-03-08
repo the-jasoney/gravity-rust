@@ -1,20 +1,21 @@
-mod window;
 mod sim;
+mod window;
 
-extern crate piston_window;
 extern crate lazy_static;
+extern crate piston_window;
 
-use crate::window::create_window;
 use crate::sim::object::Object;
+use crate::window::create_window;
 
-use sim::vec2::Vec2;
-use sim::vec2;
+use sim::segment::Segment;
 use sim::solver::Solver;
+use sim::vec2;
+use sim::vec2::Vec2;
 
 use piston_window::ellipse::circle;
-use piston_window::*;
-use piston_window::Motion::{MouseCursor, MouseScroll};
 use piston_window::Button as ButtonType;
+use piston_window::Motion::{MouseCursor, MouseScroll};
+use piston_window::*;
 
 use std::time::Instant;
 
@@ -40,7 +41,7 @@ fn main() {
     let mut last_tick: Instant = Instant::now();
 
     // window
-    let mut window: PistonWindow = create_window(1600, 800);
+    let mut window: PistonWindow = create_window(800, 400);
     let w = window.size().width;
     let h = window.size().height;
 
@@ -48,25 +49,28 @@ fn main() {
     //let mut objects: Vec<Object> = vec![];
     let mut solver = Solver::new(10.0, w - 10.0, 10.0, h - 10.0);
 
-    while let Some(event) = window.next() { // program loop
+    while let Some(event) = window.next() {
+        // program loop
         //let mut object_locations: Vec<Vec2> = vec![];
 
         // calculate dt
         let dt: f64 = last_tick.elapsed().as_secs_f64() * time_scaling_factor;
         last_tick = Instant::now();
 
-        if let Event::Input(input, _) = &event { // handle events
+        if let Event::Input(input, _) = &event {
+            // handle events
             if let Input::Move(x) = *input {
                 if let MouseCursor(pos) = x {
                     [mouse_x, mouse_y] = pos;
                 } else if let MouseScroll([_, y]) = x {
                     if time_scaling_factor > 0.0 {
-                        time_scaling_factor += y/100.0;
+                        time_scaling_factor += y / 100.0;
                     }
                 }
             }
             if let Input::Button(x) = *input {
-                if x.button == ButtonType::Mouse(MouseButton::Left) { // mouse left click
+                if x.button == ButtonType::Mouse(MouseButton::Left) {
+                    // mouse left click
                     if x.state == ButtonState::Press {
                         mouse_down_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
                     }
@@ -74,17 +78,19 @@ fn main() {
                     if x.state == ButtonState::Release {
                         mouse_up_position = Some(Vec2::from_arr([mouse_x, mouse_y]));
                     }
-                } else if
-                    x.button == ButtonType::Keyboard(Key::Backspace) ||
-                    x.button == ButtonType::Keyboard(Key::Delete)
-                { // clear objects with backspace/delete and reset time scaling factor
+                } else if x.button == ButtonType::Keyboard(Key::Backspace)
+                    || x.button == ButtonType::Keyboard(Key::Delete)
+                {
+                    // clear objects with backspace/delete and reset time scaling factor
                     solver.objects = vec![];
                     time_scaling_factor = 1.0;
-                } else if x.button == ButtonType::Keyboard(Key::Space) { // space toggle vectors
+                } else if x.button == ButtonType::Keyboard(Key::Space) {
+                    // space toggle vectors
                     if x.state == ButtonState::Press {
                         show_vectors = !show_vectors
                     }
-                } else if x.button == ButtonType::Keyboard(Key::P) { // toggle show positions
+                } else if x.button == ButtonType::Keyboard(Key::P) {
+                    // toggle show positions
                     if x.state == ButtonState::Press {
                         show_predictions = !show_predictions;
                     }
@@ -95,7 +101,7 @@ fn main() {
         solver.solve_all(dt);
         // check if the user created a object and actually create it
         if let [Some(d), Some(u)] = [mouse_down_position, mouse_up_position] {
-            solver.add_object(d, (u - d) * 2.0, 1.0);
+            solver.add_object(d, (u - d) * 2.0, 10.0);
 
             // reset
             mouse_down_position = None;
@@ -118,7 +124,7 @@ fn main() {
                     circle(i.position.x, i.position.y - 10.0, BALL_RADIUS),
                     &context.draw_state,
                     context.transform,
-                    graphics
+                    graphics,
                 );
 
                 if show_vectors {
@@ -127,13 +133,13 @@ fn main() {
                         [
                             i.position.x,
                             i.position.y - 10.0,
-                            i.position.x + i.velocity.x/3.0,
-                            i.position.y - 10.0 + i.velocity.y/3.0 + i.velocity.y.signum()*10.0
+                            i.position.x + i.velocity.x / 3.0,
+                            i.position.y - 10.0 + i.velocity.y / 3.0 + i.velocity.y.signum() * 10.0,
                         ],
                         6.0,
                         &context.draw_state,
                         context.transform,
-                        graphics
+                        graphics,
                     );
                 }
             }
@@ -143,45 +149,44 @@ fn main() {
                     circle(x.x, x.y, 10.0),
                     &context.draw_state,
                     context.transform,
-                    graphics
+                    graphics,
                 );
 
                 line_drawer.draw_arrow(
-                    [
-                        x.x,
-                        x.y,
-                        mouse_x,
-                        mouse_y
-                    ],
+                    [x.x, x.y, mouse_x, mouse_y],
                     6.0,
                     &context.draw_state,
                     context.transform,
-                    graphics
+                    graphics,
                 );
 
-                if !show_predictions { return } // prevent showing predictions when show_predictions != true
+                /*
+                line_drawer.draw(
+                    Segment::from((vec2!(x.x, x.y), vec2!(mouse_x, mouse_y)))
+                        .extend(10.0)
+                        .as_4_f64_arr(),
+                    &context.draw_state,
+                    context.transform,
+                    graphics,
+                );
+                */
+
+                if !show_predictions {
+                    return;
+                } // prevent showing predictions when show_predictions != true
 
                 let position = vec2!(x.x, x.y);
                 let possible_up = vec2!(mouse_x, mouse_y);
                 let velocity = (possible_up - position) * 2.0;
 
-                let positions = solver.solve_for_x_seconds(
-                    position,
-                    velocity,
-                    1.0,
-                    4
-                );
+                let positions = solver.solve_for_x_seconds(position, velocity, 1.0, 4);
 
                 for i in positions {
                     ellipse3_drawer.draw(
-                        circle(
-                            i.x,
-                            i.y,
-                            5.0
-                        ),
+                        circle(i.x, i.y, 5.0),
                         &context.draw_state,
                         context.transform,
-                        graphics
+                        graphics,
                     );
                 }
             }

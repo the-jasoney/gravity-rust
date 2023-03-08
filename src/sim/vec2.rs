@@ -1,5 +1,7 @@
-use std::ops;
 use std::fmt;
+use std::ops;
+
+pub type Point = (f64, f64);
 
 ///A 2D Vector that can be
 ///  - added by another Vec2
@@ -19,22 +21,19 @@ impl Vec2 {
 
         Vec2 {
             x: self.x * inv_sqrt,
-            y: self.y * inv_sqrt
+            y: self.y * inv_sqrt,
         }
     }
 
     pub fn abs(self) -> Vec2 {
         Vec2 {
             x: self.x.abs(),
-            y: self.y.abs()
+            y: self.y.abs(),
         }
     }
 
     pub fn from_arr(v: [f64; 2]) -> Vec2 {
-        Vec2 {
-            x: v[0],
-            y: v[1]
-        }
+        Vec2 { x: v[0], y: v[1] }
     }
 
     pub fn dist_scalar(a: Vec2, b: Vec2) -> f64 {
@@ -49,7 +48,7 @@ impl ops::Add<Vec2> for Vec2 {
     fn add(self, rhs: Vec2) -> Self::Output {
         Vec2 {
             x: self.x + rhs.x,
-            y: self.y + rhs.y
+            y: self.y + rhs.y,
         }
     }
 }
@@ -66,7 +65,7 @@ impl ops::Mul<f64> for Vec2 {
     fn mul(self, rhs: f64) -> Self::Output {
         Vec2 {
             x: self.x * rhs,
-            y: self.y * rhs
+            y: self.y * rhs,
         }
     }
 }
@@ -77,7 +76,7 @@ impl ops::Mul<Vec2> for f64 {
     fn mul(self, rhs: Vec2) -> Self::Output {
         Vec2 {
             x: rhs.x * self,
-            y: rhs.y * self
+            y: rhs.y * self,
         }
     }
 }
@@ -94,7 +93,7 @@ impl ops::Sub<Vec2> for Vec2 {
     fn sub(self, rhs: Vec2) -> Self::Output {
         Vec2 {
             x: self.x - rhs.x,
-            y: self.y - rhs.y
+            y: self.y - rhs.y,
         }
     }
 }
@@ -111,7 +110,7 @@ impl ops::Neg for Vec2 {
     fn neg(self) -> Self::Output {
         Vec2 {
             x: -self.x,
-            y: -self.y
+            y: -self.y,
         }
     }
 }
@@ -119,6 +118,12 @@ impl ops::Neg for Vec2 {
 impl fmt::Display for Vec2 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+impl From<Vec2> for Point {
+    fn from(value: Vec2) -> Self {
+        (value.x, value.y)
     }
 }
 
@@ -137,7 +142,13 @@ macro_rules! vec2 {
     ($x:expr, $y:expr) => {
         Vec2 {
             x: $x as f64,
-            y: $y as f64
+            y: $y as f64,
         }
+    };
+    ($v:expr) => {
+        vec2!($v, $v)
+    };
+    () => {
+        vec2!(0)
     };
 }
